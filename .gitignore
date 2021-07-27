@@ -1,4 +1,4 @@
 # ignore log
 *.log
-
+*.pyc
 *.pdf

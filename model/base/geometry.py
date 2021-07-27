@@ -7,7 +7,7 @@ from .correlation import Correlation
 class Geometry:
     @classmethod
     def initialize(cls, feat_size, device):
-        cls.max_pts = 12000  # modified
+        cls.max_pts = 4000  # modified
         cls.eps = 1e-30
         cls.rfs = cls.receptive_fields(11, 4, feat_size).to(device)
         cls.rf_center = Geometry.center(cls.rfs)

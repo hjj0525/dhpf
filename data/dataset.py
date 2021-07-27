@@ -37,8 +37,8 @@ class CorrespondenceDataset(Dataset):
                         'JPEGImages',
                         'PairAnnotation',
                         'bbox'),
-            'unreal': ('Bench-Unreal',
-                       'test_pairs.csv',
+            'unreal': ('Bench-Unreal_4000',
+                       '_balanced.csv',
                        'Images',
                        'Annotations',
                        'img')
@@ -50,6 +50,8 @@ class CorrespondenceDataset(Dataset):
             self.spt_path = os.path.join(base_path, split+'_pairs.csv')
         elif benchmark == 'spair':
             self.spt_path = os.path.join(base_path, self.metadata[benchmark][1], split+'.txt')
+        elif benchmark == 'unreal':
+            self.spt_path = os.path.join(base_path, split+self.metadata[benchmark][1])
         else:
             self.spt_path = os.path.join(base_path, self.metadata[benchmark][1])
 
@@ -66,7 +68,7 @@ class CorrespondenceDataset(Dataset):
         if benchmark == 'caltech':
             self.max_pts = 400
         elif benchmark == 'unreal':
-            self.max_pts = 12000
+            self.max_pts = 4000
         else:
             self.max_pts = 40
         self.split = split

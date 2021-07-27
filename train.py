@@ -20,6 +20,7 @@ def train(epoch, model, dataloader, strategy, optimizer, training):
     r"""Code for training DHPF"""
     model.train() if training else model.eval()
     average_meter = AverageMeter(dataloader.dataset.benchmark)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=lambda epoch: 0.95 ** epoch, last_epoch=-1)
 
     for idx, batch in enumerate(dataloader):
 
@@ -39,6 +40,8 @@ def train(epoch, model, dataloader, strategy, optimizer, training):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            scheduler.step()
+
         average_meter.update(eval_result, layer_sel.detach(), batch['category'], loss.item())
         average_meter.write_process(idx, len(dataloader), epoch)
 
@@ -56,7 +59,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dynamic Hyperpixel Flow Pytorch Implementation')
     parser.add_argument('--datapath', type=str, default='../Datasets_DHPF')
     parser.add_argument('--backbone', type=str, default='resnet101', choices=['resnet50', 'resnet101'])
-    parser.add_argument('--benchmark', type=str, default='pfpascal', choices=['pfpascal', 'spair'])
+    parser.add_argument('--benchmark', type=str, default='pfpascal', choices=['pfpascal', 'spair','unreal'])
     parser.add_argument('--thres', type=str, default='auto', choices=['auto', 'img', 'bbox'])
     parser.add_argument('--supervision', type=str, default='strong', choices=['weak', 'strong'])
     parser.add_argument('--selection', type=float, default=0.5)
@@ -65,6 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.03)
     parser.add_argument('--niter', type=int, default=100)
     parser.add_argument('--bsz', type=int, default=2)
+    parser.add_argument('--load', type=str, default=None)
     args = parser.parse_args()
     Logger.initialize(args)
     utils.fix_randseed(seed=0)
@@ -72,12 +76,16 @@ if __name__ == '__main__':
     # Model initialization
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = dhpf.DynamicHPF(args.backbone, device)
+
+    if args.load:
+        model.load_state_dict(torch.load(args.load))
+
     Objective.initialize(args.selection, args.alpha)
     strategy = sup.WeakSupStrategy() if args.supervision == 'weak' else sup.StrongSupStrategy()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.5)
 
     # Dataset download & initialization
-    download.download_dataset(args.datapath, args.benchmark)
+    # download.download_dataset(args.datapath, args.benchmark)
     trn_ds = download.load_dataset(args.benchmark, args.datapath, args.thres, device, 'trn')
     val_ds = download.load_dataset(args.benchmark, args.datapath, args.thres, device, 'val')
     trn_dl = DataLoader(trn_ds, batch_size=args.bsz, shuffle=True, num_workers=0)
@@ -93,6 +101,7 @@ if __name__ == '__main__':
             val_loss, val_pck = train(epoch, model, val_dl, strategy, optimizer, training=False)
 
         # Save the best model
+        # validation set은 학습하지 않은 상태에서 loss와 pck를 얻어냄, 그 후 pck가 가장 좋은 모델을 저장
         if val_pck > best_val_pck:
             best_val_pck = val_pck
             Logger.save_model(model, epoch, val_pck)
